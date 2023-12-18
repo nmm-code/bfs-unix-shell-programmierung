@@ -1,0 +1,16 @@
+#!/bin/sh
+# author: Nima , Max
+
+# Erstellt ein Unterordner "files"
+# -p nur wenn es nicht existiert
+# -m 777 Rechte zuweisen
+mkdir -p -m 777 files
+
+# Kopiert alle .txt Dateien in den Unterordner files
+# -n nichts überschreiben
+# Fehlermeldungen werden unterdrückt
+cp -n *.txt files/ 2>/dev/null
+
+# Gibt das files directory aus und wird umgeleitet in myfiles
+# -Sr sortiert aufsteigend nach Datei Groesse
+ls -Sr files/ > myfiles

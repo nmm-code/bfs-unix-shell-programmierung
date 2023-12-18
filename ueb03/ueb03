@@ -1,0 +1,217 @@
+#!/bin/sh
+#---------------------------------------------------------------------------------------------------------
+#  Das Skript "ueb03" bietet verschiedene Berechnungsfunktionen an 
+#  Es unterstützt die Berechnung von Primzahlen, Fakultäten und Binomialkoeffizienten.
+#
+#  - Primzahlen: Mit der Option -p oder --prime 
+#    kann überprüft werden, ob eine gegebene Zahl NUM1 eine Primzahl ist.
+#    Das Skript gibt "NUM1 ist eine Primzahl" aus, wenn NUM1 eine Primzahl ist, andernfalls wird "NUM1 ist keine Primzahl" ausgegeben.
+#
+#  - Fakultäten: Mit der Option -f oder --factorial 
+#    kann die Fakultät einer nichtnegativen ganzen Zahl NUM1 berechnet werden. 
+#    Das Skript gibt das Ergebnis der Berechnung aus.
+#
+#  - Binomialkoeffizient: Mit der Option -c oder --bincoeff 
+#    kann der Binomialkoeffizient mit den Indizes NUM1 und NUM2 berechnet werden. 
+#    NUM1 und NUM2 müssen nichtnegative ganze Zahlen sein, 
+#    wobei NUM1 größer oder gleich NUM2 sein muss. Das Skript gibt das Ergebnis der Berechnung aus.
+#---------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+# In dieser Funktion wird bestimmt, ob der erste Parameter eine Primenzahl ist
+# 
+#	IN : $1 die Zahl die Bestimmt wird
+#
+# 	OUT: -	return code besagt ob es eine Primenzahl ist
+#		 	-	0: ist eine Primenzahl
+#			-	1: ist keine Primenzahl
+#-----------------------------------------------------------------------------
+prim() {
+	num="$1"
+	res="0"
+
+	if [ $num -ne 2 ]; then
+		if [ $num -lt 2 ] || [ $((num % 2)) -eq 0 ]; then
+			res="1"
+		fi
+		i='3'
+		while [ $((i * i)) -le $num ] && [ $res -eq "0" ]; do
+			if [ $((num % i)) -eq 0 ]; then
+				res="1"
+			fi
+			i=$((i + 2))
+		done
+
+	fi
+
+	return "$res"
+}
+#-----------------------------------------------------------------------------
+# Berechnet die Fakultät des ersten Parameter
+#
+# 	IN : 	- $1 erster Parameter als Zahl
+#	
+# 	OUT:	- echo von dem Rückgabewert
+#		    - return 0
+#-----------------------------------------------------------------------------			
+factorial() {
+	num="$1"
+	i='1'
+	fact='1'
+
+	while [ $i -le $num ]; do
+		fact=$((fact * i))
+		i=$((i + 1))
+	done
+
+	echo "$fact"
+	return 0
+}
+
+#-----------------------------------------------------------------------------
+# Berechnet den Binomialkoeffizienten
+#
+# 	IN : 	- $1 erster Parameter als Zahl
+#			- $2 zweiter Parameter als Zahl
+#	
+# 	OUT:	- echo von dem Rückgabewert
+#			- return 0
+#-----------------------------------------------------------------------------			
+binomial() {
+	num1=$(factorial "$1")
+
+	num2=$(factorial "$2")
+
+	num3=$(factorial $(($1 - $2)))
+
+	echo "$((num1 / (num2 * num3)))"
+	return 0
+}
+
+#-----------------------------------------------------------------------------
+# Gibt die Hilfe in die Konsole aus als stdout
+#
+# 	OUT: - Ausgabe in stdout
+#-----------------------------------------------------------------------------
+ShowHelp() {
+	echo 'Usage:'
+	echo 'ueb03 -h | ueb03 --help'
+	echo ''
+	echo '  prints this help and exits'
+	echo ''
+	echo 'ueb03 OPTION NUM1 [NUM2] [OPTION NUM1 [NUM2]] ...'
+	echo ''
+	echo 'Where OPTION is one of:'
+	echo ''
+	echo '  -p, --prime NUM1          Computes whether NUM1 is a prime number or not'
+	echo '                            NUM1 must be an integer'
+	echo ''
+	echo '  -f, --factorial NUM1      Computes NUM1! (the factorial of NUM1)'
+	echo '                            NUM1 must be a nonnegative integer'
+	echo ''
+	echo '  -c, --bincoeff NUM1 NUM2  Computes the binomial coefficient indexed by NUM1 and NUM2'
+	echo '                            NUM1 and NUM2 must be nonnegative integers'
+	echo '                            with NUM1 >= NUM2'
+}
+
+
+#-----------------------------------------------------------------------------
+# Gibt eine Fehlermeldung aus beginnend mit "Error: ", 
+# danach folgt der String aus dem ersten Parameter ,
+# beendet das Skript mit exit 1
+#
+# 	IN : 	- String um die Fehlermeldung weiter zu spezifizieren
+#
+#	OUT:	- Ausgabe auf stderr
+#-----------------------------------------------------------------------------
+ShowError() {
+	echo "Error: $1" >&2
+	ShowHelp >&2
+	res="255"
+	case "$1" in
+
+		'Unbekannte Operation')
+			res="1";
+		;;
+
+		'Falsche Aufrufsyntax')
+			res="2"
+		;;
+
+		'Negativer Parameter')
+			res="3"
+		;;
+		
+		'Zweiter Parameter > Erster Parameter')
+			res="4"
+		;;
+
+	esac
+	exit "$res"
+}
+
+#--------------------------------------------------------------------------------
+#
+# Beginn des Skriptes
+#
+#--------------------------------------------------------------------------------
+
+if [ "$#" -eq 0 ]; then
+	ShowError "Falsche Aufrufsyntax"
+fi
+
+if [ "$#" -eq 1 ] && [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+	ShowHelp
+	exit 0
+fi
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+
+		--prime | -p)
+			if [ "$#" -ge 2  ]; then
+				prim "$2"
+				if [ "$?" -eq 1 ]; then
+					echo "The number $2 is not a prime number."
+				else
+					echo "The number $2 is a prime number."
+				fi
+				shift 2
+			else
+				ShowError "Falsche Aufrufsyntax"
+			fi
+			;;
+
+		--factorial | -f)
+			if [ "$#" -ge 2  ]; then
+				if [ $2 -lt 0 ]; then
+					ShowError "Negativer Parameter"
+				fi
+
+				echo "factorial of $2: $(factorial "$2")"
+				shift 2
+			else
+				ShowError "Falsche Aufrufsyntax"
+			fi
+			;;
+
+		--bincoeff | -c)
+			if [ "$#" -ge 3 ]; then
+				if [ $2 -lt 0 ] || [ $3 -lt 0 ]; then
+					ShowError "Negativer Parameter"
+				fi
+ 				if [ $2 -lt $3 ]; then
+					ShowError 'Zweiter Parameter > Erster Parameter'
+				fi
+				echo "binomial coefficient of $2 and $3: $(binomial "$2" "$3")"
+				shift 3
+			else
+				ShowError "Falsche Aufrufsyntax"
+			fi
+			;;
+
+		*)
+			ShowError "Unbekannte Operation"
+		;;
+	esac
+done

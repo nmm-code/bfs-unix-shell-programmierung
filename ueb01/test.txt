@@ -1,0 +1,48 @@
+# Systematisches Testen
+# author: Nima , Max
+
+1. Fall:
+Verzeichnis:    ueb01 ,test.txt
+Erwartung:      ueb01 ,test.txt ,myfiles , files/
+files/:         test.txt
+myfiles:        test.txt
+
+
+2. Fall:
+Verzeichnis:    ueb01
+Erwartung:      ueb01 ,myfiles ,files/  
+
+
+3.Fall:
+# Nur txt Datein werden kopiert
+
+Verzeichnis:    ueb01 ,hello.pdf
+Erwartung:      ueb01 ,hellp.pdf, myfiles ,files/
+
+
+4.Fall:
+# Aufsteigend sortiertes schreiben in myfiles
+
+Verzeichnis:    ueb01, test.txt(20 B), small.txt(10 B), large.txt(100 B)
+Erwartung:      ueb01, test.txt(20 B), small.txt(10 B), large.txt(100 B) ,myfiles ,files/
+files/:         test.txt, small.txt, large.txt
+myfiles:        small.txt 
+                test.txt
+                large.txt
+
+5.Fall:
+# Ordner darf nicht ersetzt werden
+ 
+Verzeichnis:    ueb01, test.txt, files/
+Erwartung:      ueb01, test.txt, myfiles ,files/
+files/:         test.txt
+myfiles:        test.txt
+                
+
+6.Fall:
+# test.txt darf nicht ersetzt werden
+
+Verzeichnis:    ueb01, test.txt(100 B), files/, files/test.txt(50 B)
+Erwartung:      ueb01, test.txt, myfiles ,files/
+files/:         test.txt(50 B)
+myfiles:        test.txt

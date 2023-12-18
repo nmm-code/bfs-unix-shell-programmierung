@@ -1,0 +1,604 @@
+#!/usr/bin/expect --
+#############################################################################
+# Aufruf: arnold [opts] <DUT> [opts] <TESTBENCH> [opts]                     #  
+# TESTBENCH - Dateiname der Testbench                                       #
+# DUT       - Device under test - zu testendes Programm                     #
+# OPTS:                                                                     #
+#   -v,   --version            : print out arnold's version number and exit #
+#   -h,   --help               : print out this short help-index and exit   #
+#   -c,   --continue           : force Arnold to continue testing           #
+#   -w,   --web                : enable web-statistics                      #
+#   -m,   --make-coffee-please : make some fresh coffee and exit            #
+#                                                                           #
+#############################################################################
+
+set arraynr 0
+# timeout für expect
+set timeout 5
+
+# weitertesten trotz Fehler
+set CONTINUE 0
+# Web-Interface ausschalten
+set WEB 0
+# kein Fehler beim Testen
+set OHNEFEHLER 1
+
+# Liste mit vordefinierten Benutzerkonstanten
+set uservarList {}
+# aktuelle Versionnummer
+set version "0.4.2.4"
+
+
+
+########## Parameterverarbeitung
+# Reihenfolge der Bearbeitung entspricht Listenreihenfolge 
+set someargs {-h --help -v --version -c --continue -w --web -m --make-coffee-please}
+
+
+proc removefromlist {list text} {
+# entfernt einen Parameter aus der übergebenen Liste
+  set pos [lsearch $list $text]
+  set list [lreplace $list $pos $pos]
+  return $list
+}
+
+
+
+proc opt{--make-coffee-please} {} {
+# eine Option, die jedes Programm enthalten sollte ;-)
+  puts -nonewline "Activating /dev/coffeemachine."
+  flush stdout
+  sleep 1
+  puts -nonewline "."
+  flush stdout
+  sleep 1
+  puts -nonewline "."
+  flush stdout
+  sleep 1
+  puts "\ndevice not found or busy. Giving up."
+  exit 1
+}
+proc opt{-m} {} {
+# no comment
+  opt{--make-coffee-please}
+}
+
+
+proc opt{--help} {} {
+# Ausgabe der Hilfe
+global version
+  puts "THE HELP FOR THE -A-R-N-O-L-D- Version $version !!"
+  puts {usage    : arnold [opts] <dut> [opts] <testbench> [opts]}
+  puts {switches : -v,   --version            : print out arnold's version number and exit}
+  puts {           -h,   --help               : print out this short help-index and exit}
+  puts {           -c,   --continue           : force Arnold to continue testing}
+  puts {           -w,   --web                : enable web-statistics}
+  puts {           -m,   --make-coffee-please : make some fresh coffee and exit}
+  exit 0
+}
+proc opt{-h} {} {
+  opt{--help}
+}
+
+
+proc opt{--continue} {} {
+# Weitertesten trotz Fehler
+global CONTINUE
+  set CONTINUE 1
+  puts "Arnold is now runnning in continuous-mode! Thank you !!!"
+}
+proc opt{-c} {} {
+  opt{--continue}
+}
+
+
+
+proc opt{--web} {} {
+# Web-Interface aktivieren
+global WEB
+  set WEB 1
+  puts "Web-interface enabled! Thank you !!!"
+}
+proc opt{-w} {} {
+  opt{--web}
+}
+
+
+proc opt{--version} {} {
+# Ausgabe der Versionsnummer
+global version
+  puts "Hello, this is Arnold, \"always beta\" version $version !!"
+  exit 0
+}
+proc opt{-v} {} {
+  opt{--version}
+}
+
+
+
+proc checkSwitches {switchlist arglist} {
+# Verarbeitung der Kommandozeilen-Parameter in Abhängigkeit der Switch-List
+  foreach oneswitch $switchlist {
+     foreach arg $arglist {
+        if {[regexp -- "^ *$oneswitch\$" $arg]} {
+          if {[catch {eval opt{$oneswitch}}]} {
+            puts "Option '$oneswitch' is valid, but something went wrong! Skipping."
+          } else {
+            set arglist [removefromlist $arglist $arg]
+          }
+        } ;# if regexp
+      } ;# inner foreach
+  } ;# outer foreach
+  return $arglist
+}
+############ ende der Paramterverarbeitung
+
+
+
+
+proc define {VARNAME VALUE} {
+# fügt eine definierte Konstante in die Liste ein
+global uservarList
+  set uservarList [lappend uservarList $VARNAME $VALUE]
+}
+
+
+proc uservarSubst {testablauf} {
+# ersetzt die Benutzerkonstanten in der Testbench
+global uservarList
+  array set uservarArray $uservarList
+# Ersetzen von Konstanten in Konstanten
+  foreach uservar [array names uservarArray] {
+    foreach bla [array names uservarArray] {
+      regsub -all "\\$\{$uservar\}" $uservarArray($bla) "$uservarArray($uservar)" uservarArray($bla)
+    }
+  }
+# Ersetzen der Konstanten im TestArray  
+  foreach uservar [array names uservarArray] {
+    regsub -all "(\\$\{$uservar)\}" $testablauf "$uservarArray($uservar)" testablauf
+  }
+  array unset uservarArray 
+  return $testablauf
+}
+
+
+
+proc dutSubst {zeile} {
+# ersetzt den Ausdruck "DUT" durch den Aufrufparameter
+global DUT
+  regsub -all {DUT} $zeile $DUT zeile
+  return $zeile
+}
+
+
+
+proc FehlerInTestbench {testnummer} {
+# Fehlermeldung beim Fehler in der Testbench
+  puts "\nFehler in Testbench bei Test Nummer $testnummer !!\n"
+  exit 1
+}
+
+
+
+
+
+
+
+
+
+proc TestenINTERACT {} {
+# Testen per expect im interaktiven Modus
+    global TestArray
+    global timeout
+    set KEINFEHLER 1
+
+    set BEFEHL "spawn -noecho bash -c \"$TestArray(CMD)\""
+    if {[catch {eval $BEFEHL}]}  {
+       puts "Fehler im Spawn!"
+    } else {
+      set i 0
+      while {$i < [llength $TestArray(WAITFOR)] && $KEINFEHLER} {
+        set erhalten 0
+	set KEINFEHLER 0  ;# grundsätzlich Fehler !!  
+
+        set WAITFOR [lindex $TestArray(WAITFOR) $i]
+        set SEND [lindex $TestArray(SEND) $i]
+        set EXPECT [lindex $TestArray(EXPECT) $i]
+# eigentlicher Test
+        # WAITFOR mit "-i" ? --> Listenlänge > 1
+        # evtl. wie vorher mit 2 "expect"-Aufrufen
+	if {[llength $WAITFOR]>1} {
+	  expect {
+              -nocase -re [lindex $WAITFOR 0] { set erhalten 1 }
+          }
+	} else {
+	  expect {
+              -re [lindex $WAITFOR 0] { set erhalten 1 }
+          }
+	}  
+        if {$erhalten} {
+	  # Senden 
+          send "$SEND\r"
+          # EXPECT mit "-i"? --> Listenlänge > 1
+          # Erwarten des Ergebnisses 
+          if {[llength $EXPECT]>1} {
+            expect {
+               -nocase -re [lindex $EXPECT 0] { set KEINFEHLER 1 }
+            }
+          } else {
+            expect {
+              -re [lindex $EXPECT 0] { set KEINFEHLER 1 }
+            }
+          }  
+	} ;# Ende if $erhalten
+        incr i      
+      } ;# Ende while
+    } ;# Ende else
+  return $KEINFEHLER
+}
+
+
+
+
+
+proc TestenPARAM {} {
+# Testen mit Aufruf-Parametern
+global TestArray
+global DUT
+  set BEFEHL "set OUTPUT \[exec bash -c \{$TestArray(CMD)\}\]"
+  catch {eval $BEFEHL} OUTPUT
+  regsub {\nchild *process[^\n]*abnormally} $OUTPUT {} OUTPUT
+  
+  set EXPOUT "[lindex [lindex $TestArray(EXPECT) 0] 0]"
+  if {[llength [lindex $TestArray(EXPECT) 0] ] > 1} { 
+    set CASEFLAG "-i"
+    set NOCASE 1
+  } else {
+    set CASEFLAG "  "
+    set NOCASE 0
+  }    
+  puts "\033\[1;34mCMD  :\033\[0m '$TestArray(CMD)' "
+  puts "\033\[1;35mEXP$CASEFLAG:\033\[0m '$EXPOUT'"
+  puts "\033\[1;36mOUT  :\033\[0m '$OUTPUT'"
+  if {$NOCASE} { 
+    set VALUE [regexp -nocase $EXPOUT $OUTPUT]
+  } else {
+    set VALUE [regexp $EXPOUT $OUTPUT] 
+  }
+  return $VALUE
+}
+
+
+
+
+
+
+
+proc TestartAufruf {} {
+# Verzweigt auf TestenINTERACT oder TestenPARAM
+global TestArray
+    set RUECKGABE 0
+    # Testname ausgeben
+    puts "####################\n# \033\[1;37mTest '$TestArray(NAME)' in progress...\033\[0m"
+    if {[info exists TestArray(COMMENT)]} {
+      puts "# $TestArray(COMMENT)"
+    }
+    puts "####################"  
+    if {[regexp -nocase {param} $TestArray(TYPE)]} { 
+       set RUECKGABE [TestenPARAM] 
+    } else {
+       set RUECKGABE [TestenINTERACT] 
+    }
+    return $RUECKGABE
+}
+
+
+
+
+proc ohneKommentareUndLeerzeilen {Testablauf} {
+# Kommantare und Leerzeilen aus der Testbench entfernen
+    regsub -all {\#[^\n]*\n} $Testablauf {
+} Testablauf
+    regsub -all {(( *\n *\n)|( *\n *\n *\n))+} $Testablauf {
+} Testablauf 
+    regsub -all {^ *} $Testablauf {} Testablauf
+    return $Testablauf
+}
+
+
+
+# Parameterspezifische Substitutionen
+
+proc substTYPE zeile {
+  regsub -nocase {type *= *} $zeile {} zeile
+  return $zeile
+}
+
+proc substNAME zeile {
+  regsub -nocase {name *= *} $zeile {} zeile
+  return $zeile
+}
+
+proc substCOMMENT zeile {
+  regsub -nocase {comment *= *} $zeile {} zeile
+  return $zeile
+}
+
+proc substCMD zeile {
+  regsub -nocase {cmd *} $zeile {} zeile
+  regsub {^\{} $zeile {} zeile
+  regsub {\}$} $zeile {} zeile 
+  return [dutSubst $zeile]
+}
+
+proc substWAITFOR zeile {
+  if [regexp -nocase {waitfor *-i} $zeile] {
+    set caseinsensitive {-i}
+  }
+  regsub -nocase {waitfor[^\{]*} $zeile {} zeile
+  regsub {^\{} $zeile {} zeile
+  regsub {\}$} $zeile {} zeile
+  if {[info exists caseinsensitive]} {
+    set zeile [list $zeile $caseinsensitive]
+  } else {
+    set zeile [list "$zeile"] 
+  }  
+  return $zeile
+}
+
+proc substSEND zeile {
+  regsub -nocase {send *} $zeile {} zeile
+  regsub {^\"} $zeile {} zeile
+  regsub {\"$} $zeile {} zeile 
+  return $zeile
+}
+
+proc substEXPECT zeile {
+  if [regexp -nocase {expect *-i} $zeile] {
+    set caseinsensitive {-i}
+  }
+  regsub -nocase {expect[^\{]*} $zeile {} zeile
+  regsub {^\{} $zeile {} zeile
+  regsub {\}$} $zeile {} zeile
+  if {[info exists caseinsensitive]} {
+    set zeile [list $zeile $caseinsensitive]
+  } else {
+    set zeile [list "$zeile"]  
+  }  
+  return $zeile
+}
+
+
+
+
+proc searchItem {regexpitem substitem} {
+# Entfernen des substitems aus der Testbench
+upvar ablaufliste ablaufliste
+upvar i i
+upvar testablauf testablauf
+   if {[regexp -nocase $regexpitem [lindex $ablaufliste $i]]} {
+     set bla [subst$substitem "[lindex $ablaufliste $i]"]
+     set testablauf [lappend testablauf $substitem "$bla"]
+   }  
+}
+
+
+proc shrinkItem {item} {
+# fügt expect, send und waitfor zu einer Liste zusammen
+upvar testablauf testablauf
+  set tempList {}
+  set index [lsearch $testablauf $item]
+  while {$index>=0} {
+    lappend tempList "[lindex $testablauf [expr $index + 1]]"
+    set testablauf [lreplace $testablauf $index [expr $index + 1]]
+    set index [lsearch $testablauf $item]    
+  }
+  return $tempList
+}
+
+
+
+proc missingVarOrContent {item regexpContent} {
+# Ausgabe einer Fehlermeldung beim Fehlen von Schlüsselworten
+upvar testnummer testnummer
+upvar testarray testarray
+  if {![info exists testarray($item)]} {
+    puts "$item missing in Test $testnummer!! Aborting..."
+    return 1    
+  }  
+  if {![regexp -nocase $regexpContent $testarray($item)]} {
+    puts "Wrong $item in Test $testnummer!! Aborting..."
+    return 1
+  }
+  return 0
+}
+
+
+proc checkArray {testablauf} {
+# Verifizieren des Test-Arrays
+global arraynr
+  # lokales Array wg. Verifizierung des Inhalts
+ array set testarray $testablauf
+# einen addieren, fuer Nicht-Informatiker
+set testnummer [expr $arraynr + 1]
+  # Type falsch oder nicht vorhanden ??
+  if {[missingVarOrContent {TYPE} {(^param)|(^interact)}]} {
+    FehlerInTestbench $testnummer
+  }    
+  # Name nicht vorhanden ??
+  if {[missingVarOrContent "NAME" {.}]} {
+    FehlerInTestbench $testnummer
+  }  
+  # CMD nicht vorhanden ??
+  if {[missingVarOrContent "CMD" {.}]} {
+    FehlerInTestbench $testnummer  
+  }  
+  # PARAM-Mode verifizieren
+  if {[regexp -nocase {^param} $testarray(TYPE)]} {
+    if {[missingVarOrContent "EXPECT" {.}]} {
+    FehlerInTestbench $testnummer    
+  }
+  } else {
+  # INTERACT-Mode verifizieren
+    # WAITFOR
+    if {![info exists testarray(WAITFOR)]} {
+      puts "WAITFOR missing in Test $testnummer!! Aborting..."
+      FehlerInTestbench $testnummer    
+    }  
+    set waitforAnzahl [llength $testarray(WAITFOR)]
+    foreach einzelWaitfor $testarray(WAITFOR) {
+      if {![regexp {.} [lindex $einzelWaitfor 0] ]} {
+        puts "Wrong WAITFOR in Test $testnummer!! Aborting..."
+        FehlerInTestbench $testnummer      
+      }
+    }
+    # SEND
+    if {![info exists testarray(SEND)]} {
+      puts "SEND missing in Test $testnummer!! Aborting..."
+      FehlerInTestbench $testnummer
+    }  
+    set sendAnzahl [llength $testarray(SEND)]
+    foreach einzelSend $testarray(SEND) {
+      if {![regexp {.} $einzelSend]} {
+        puts "Wrong SEND in Test $testnummer!! Aborting..."
+        FehlerInTestbench $testnummer
+      }
+    }
+    # EXPECT
+    if {![info exists testarray(EXPECT)]} {
+      puts "EXPECT missing in Test $testnummer!! Aborting..."
+      FehlerInTestbench $testnummer
+    }  
+    set expectAnzahl [llength $testarray(EXPECT)]
+    foreach einzelExpect $testarray(EXPECT) {
+      if {![regexp {.} $einzelExpect]} {
+        puts "Wrong EXPECT in Test $testnummer!! Aborting..."
+        FehlerInTestbench $testnummer
+      }
+    }
+    # Gleiche Anzahl von WAITFOR, SEND, EXPECT
+    if {!(($waitforAnzahl==$sendAnzahl)&&($sendAnzahl==$expectAnzahl))} {
+      puts "Different Anzahl of WAITFOR, SEND and EXPECT in Test $testnummer!! Aborting..."
+      FehlerInTestbench $testnummer
+    }  
+  }
+  unset testarray
+}
+
+
+
+proc prepareArray ablaufliste {
+# bereitet "ablaufliste" auf Transformation zum Array vor
+global arraynr                         ;# fuer Fehlermeldung beim Sourcen
+global Testliste
+set testablauf {}
+# Array-Indizes ermitteln
+# entsprechende Elemente an "testablauf" anhängen - wenn vorhanden
+  for {set i 0} {$i < [llength $ablaufliste]} {incr i} {
+    searchItem {^type *=} "TYPE"
+    searchItem {^name *=} "NAME"
+    searchItem {^comment *=} "COMMENT"
+    searchItem {^cmd *} "CMD"   
+    searchItem {^send *} "SEND"    
+    searchItem {^waitfor *} "WAITFOR"
+    searchItem {^expect *} "EXPECT"
+  }
+# zusammengefasste waitfor, send, expect an Liste anhängen
+  lappend testablauf "WAITFOR" [shrinkItem "WAITFOR"]
+  lappend testablauf "SEND" [shrinkItem "SEND"]
+  lappend testablauf "EXPECT" [shrinkItem "EXPECT"]
+
+# bricht mit Testbench-Error ab
+  checkArray $testablauf
+
+  lappend Testliste $testablauf
+  incr arraynr
+}
+
+
+
+
+
+proc test testablauf {
+# Aufruf aus der Testbench
+# Einzeltest -> glob. TestListe
+  set ablauf [ohneKommentareUndLeerzeilen $testablauf]
+  set ablaufliste [split [string trim $ablauf] {
+}]
+  for {set i 0} {$i<[llength $ablaufliste]} {incr i} {
+    set bla [string trim [lindex $ablaufliste $i]]
+    set ablaufliste [lreplace $ablaufliste $i $i $bla]
+  }
+  prepareArray [uservarSubst $ablaufliste]
+}
+
+
+
+
+
+# ------------- Start des Hauptprogramms -------------------
+
+# Kommandozeilenparameter parsen
+set argumente [checkSwitches $someargs $argv]
+
+# richtiger Aufruf??
+if {[llength $argumente] == 2} {
+# DUT aus Parameterliste
+# Testbench aus Parameterliste
+    set DUT [lindex $argumente 0]
+    set TESTBENCH [lindex $argumente 1]
+} else {
+  puts "wrong number of arguments!"
+  opt{--help}
+}
+
+
+# Einbinden der Testbench mit Fehlerprüfung
+if {![file exist $TESTBENCH]} {
+  puts "File '$TESTBENCH' not found!"
+  exit 1
+}
+
+if {[catch "source $TESTBENCH"]} {
+  puts "Error while sourcing the testbench '$TESTBENCH'!!"
+  exit 1
+}
+
+
+
+
+# Schleife über alle EinzeltestListen (Pseudo-Arrays)
+set i 0
+set KEINFEHLER 1
+while {$i<[llength $Testliste] && ($KEINFEHLER || $CONTINUE)} {
+  
+# EinzeltestListe --> Array (global)
+  array set TestArray [lindex $Testliste $i]
+  
+# TestartAufruf
+  set KEINFEHLER [TestartAufruf]
+  set OHNEFEHLER [expr $OHNEFEHLER & $KEINFEHLER]
+  if {$KEINFEHLER} {
+    puts " ==> --- $TestArray(NAME) \033\[1;32mOK\033\[0m ---\n"
+    append STATISTIK "  Testname: $TestArray(NAME) \033\[1;32mOK\033\[0m \n"
+  } else { 
+    puts " ==> --- $TestArray(NAME) \033\[1;31mfailed\033\[0m ---\n" 
+    append STATISTIK "  Testname: $TestArray(NAME) \033\[1;31mfailed\033\[0m \n"
+  }  
+
+# unset Array - Speicher freigeben
+  array unset TestArray
+
+  incr i
+# Schleifenende
+}
+
+# Statistik
+  puts "\nTest-Statistik:\n===============\n$STATISTIK"   
+
+  if {$OHNEFEHLER} { 
+    puts "\033\[1;32mAlles klar, gut und so. Von dem Test IHM sein Ende!\033\[0m\n" 
+  } else { 
+    puts "\033\[1;31mLeider durchgefallen :-O\033\[0m\n" 
+  }
+

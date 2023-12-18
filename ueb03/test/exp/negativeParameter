@@ -1,0 +1,19 @@
+Error: Negativer Parameter
+Usage:
+ueb03 -h | ueb03 --help
+
+  prints this help and exits
+
+ueb03 OPTION NUM1 [NUM2] [OPTION NUM1 [NUM2]] ...
+
+Where OPTION is one of:
+
+  -p, --prime NUM1          Computes whether NUM1 is a prime number or not
+                            NUM1 must be an integer
+
+  -f, --factorial NUM1      Computes NUM1! (the factorial of NUM1)
+                            NUM1 must be a nonnegative integer
+
+  -c, --bincoeff NUM1 NUM2  Computes the binomial coefficient indexed by NUM1 and NUM2
+                            NUM1 and NUM2 must be nonnegative integers
+                            with NUM1 >= NUM2

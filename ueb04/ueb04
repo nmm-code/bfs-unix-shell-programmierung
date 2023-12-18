@@ -1,0 +1,202 @@
+#!/bin/sh
+
+# Modulkopf: ueb04 - Ein Shell-Skript zur Analyse von LaTeX-Dateien
+# Optionen:
+#   -g : gibt alle included bilder auf die konsole aus
+#   -s : erstellt einer gliederung anhang von chapters,sections und subsections
+#   -u : gibt alle benutzen packete aus
+#
+# Autor: Nima, Max
+
+#---------------------------------------------------
+# Gibt die Hilfe aus
+#
+# OUT: Gibt die Hilfe auf stdout aus
+#
+#---------------------------------------------------
+printUsage() {
+    echo 'Usage:'
+    echo 'ueb04 -h | ueb04 --help'
+    echo ''
+    echo '  prints this help and exits'
+    echo ''
+    echo 'ueb04 INPUT OPTION'
+    echo ''
+    echo '  INPUT is a valid latex-File (.tex)'
+    echo ''
+    echo '  and OPTION is one of'
+    echo ''
+    echo '  -g, --graphics      prints a list of all included graphics'
+    echo ''
+    echo '  -s, --structure     prints the structure of the input file'
+    echo ''
+    echo '  -u, --usedpackages  prints a list of the used packages and their options'
+}
+
+#---------------------------------------------------
+# Gibt eine Fehlermeldung und die Hilfe aus
+#
+# IN:  $1, eine Fehlermeldung um den Benutzer zu informieren
+#
+# OUT: Gibt die Hilfe auf stderr aus
+#
+#---------------------------------------------------
+printError() {
+    echo "Error: $1" >&2
+    printUsage       >&2
+
+    res="0"
+
+	case "$1" in
+		'Wrong Syntax')
+			res="1";
+        ;;
+
+		'Unknown Option')
+			res="2"
+		;;
+
+		'Input file does not exist or is not readable.')
+			res="3"
+		;;
+
+		'Input file is not a Latex File')
+			res="4"
+		;;
+
+        *)
+            res="255"
+        ;;        
+	esac
+	exit "$res"
+}
+
+#---------------------------------------------------
+# Bereitet die Pipe vor um in die kommenden Funktion damit zu arbeiten
+#
+# IN:  $1, Eingabe Datei
+#
+# OUT: Formatierte Ausgabe der Datei
+#
+#---------------------------------------------------
+prepairPipe() {
+    cat "$1"        | 
+    sed 's/%.*$//g' |
+    tr -d '\n'      |
+    sed 's/}/&\n/g' |
+    cat
+}
+
+#---------------------------------------------------
+# Funktion :
+#
+# IN: $1, Eingabe Datei  
+#
+# OUT: Liefert alle Zeilen '\includegraphics'
+#
+#---------------------------------------------------
+process_graphics() {
+    prepairPipe "$1" |  
+    # nur zeilen filtern die \includegraphics enthalten
+    grep '\\includegraphics' | 
+    # geschweifte klammerpaar löschen
+    sed 's/.*{//g;s/}//g'
+}
+
+
+#---------------------------------------------------
+# Liefert alle Zeilen die mit '\chapter' '\section' '\subsection'      
+# enthalten
+#
+# IN:  $1, Eingabe Datei  
+#
+# OUT: erstellt eine Formatierte ausgabe
+#       
+#---------------------------------------------------
+process_struct() {
+    prepairPipe "$1" | 
+    # nur zeilen fitern die \chapter oder \section oder \subsection enthalten
+    grep '\\chapter\*\?{\|\\section\*\?{\|\\subsection\*\?{' |
+    # geschweifte klammerpaar löschen und sternchen löschen
+    sed 's/{//g;s/}//g;s/*//g'                |
+    # Zeile mit chapter ersetzen durch die formatierte ausgabe
+    sed 's/.*\\chapter\(.*\)/\1/g'            |
+    # Zeile mit section ersetzen durch die formatierte ausgabe
+    sed 's/.*\\section\(.*\)/|-- \1/g'        |
+    # Zeile mit subsection ersetzen durch die formatierte ausgabe
+    sed 's/.*\\subsection\(.*\)/    |-- \1/g' 
+}
+
+
+#---------------------------------------------------
+# Liefert alle Zeilen die mit \usepackage beginnen
+#
+# IN: Eingabe Datei  
+#
+# OUT: formatierte ausgabe 
+#
+#---------------------------------------------------
+process_usedpackages() {
+    local eckigeKlammerPaar='\[[^]]*\]';
+    local geschweifteKlammerPaar="{[^}]*}";
+    
+    prepairPipe "$1"        | 
+    sed 's/ //g'            | 
+    # Leerzeichen entfernen
+    grep '\\usepackage'     | 
+    # Zeilen mit \usepackage filtern
+    sed 's/\\usepackage//g' | 
+    # \usepackage entfernen
+    sed 's/\('$eckigeKlammerPaar'\)\('$geschweifteKlammerPaar'\)/\2\1/g' |
+    # {bsp}[bsp] -> [bsp]{bsp}
+    sed 's/.*{//g;s/}/:/g'  |
+    # geschweifteKlammerPaar entfernen und trennzeichen hinzufügen
+    sed 's/\[//g;s/\]//g'   |
+    # alphabetesch geordnet
+    sort 
+}
+
+
+if [ $# -le 1 ]; then
+    if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+        printUsage
+        exit 0
+    fi
+    printError 'Wrong Syntax'
+fi
+
+if [ $# -eq 2 ]; then
+    input="$1"
+
+    if [ ! -f "$input" ] || [ ! -r "$input" ]; then
+        printError 'Input file does not exist or is not readable.'
+    fi
+
+    test=$(echo "$input" | grep -q '\.tex$' || echo "not" )
+
+    if  [ "$test" = "not" ]; then
+        printError 'Input file is not a Latex File'
+    fi
+
+    option="$2"
+
+    case "$option" in
+        -g | --graphics)
+            process_graphics "$input"
+        ;;
+
+        -s |--structure)
+           process_struct "$input"
+        ;;
+
+        -u | --usedpackages)
+            process_usedpackages "$input"    
+        ;;
+            
+        *)
+            printError 'Unknown Option'
+        ;;
+    esac
+    exit 0
+fi
+printError 'Wrong Syntax'

@@ -1,0 +1,111 @@
+test {
+    name    = Beispieltest Teil 1 (stdout)
+    comment = Testet die Standardausgabe
+    type    = param
+    cmd     {cat beispieltest.in | DUT beispieltest.out}
+    expect  {^SoRichtigSchlecht$}
+}
+
+test {
+    name    = Beispieltest Teil 2 (Datei)
+    comment = Testet die geschriebene Datei aus Beispieltest Teil 1
+    type    = param
+    cmd     {diff beispieltest.out beispieltest.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 1 Teil 1
+    comment = Test auf gleicher Bewertung und sortierung nach Kennzahl
+    type    = param
+    cmd     {cat test1/test1.in | DUT beispieltest.out}
+    expect  {^SoRichtigSchlecht$}
+}
+
+test {
+     name    = Test 1 Teil 2
+    comment = Test auf gleicher Bewertung und sortierung nach Kennzahl
+    type    = param
+    cmd     {diff beispieltest.out test1/test1.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 2 Teil 1
+    comment = Failed , groß und kleinschreibung 
+    type    = param
+    cmd     {cat test2/test2.in | DUT beispieltest.out}
+    expect  {^NichtGanzSoSchlecht$}
+}
+
+test {
+     name    = Test 2 Teil 2
+    comment = Failed , groß und kleinschreibung 
+    type    = param
+    cmd     {diff beispieltest.out test2/test2.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 3 Teil 1
+    comment = Gleiche Kennzahl und Bewertung
+    type    = param
+    cmd     {cat test3/test3.in | DUT beispieltest.out}
+    expect  {^NichtGanzSoSchlecht$}
+}
+
+test {
+     name    = Test 3 Teil 2
+    comment = Gleiche Kennzahl und Bewertung
+    type    = param
+    cmd     {diff beispieltest.out test3/test3.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 4 Teil 1
+    comment = Failed nach einen gültigen Ausdruck
+    type    = param
+    cmd     {cat test4/test4.in | DUT beispieltest.out}
+    expect  {^NochWenigerSchlecht$}
+}
+
+test {
+     name    = Test 4 Teil 2
+    comment = Failed nach einen gültigen Ausdruck
+    type    = param
+    cmd     {diff beispieltest.out test4/test4.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 5 Teil 1
+    comment = leere Datei
+    type    = param
+    cmd     {cat test5/test5.in | DUT beispieltest.out}
+    expect  {^$}
+}
+
+test {
+     name    = Test 5 Teil 2
+    comment = leer Datei
+    type    = param
+    cmd     {diff beispieltest.out test5/test5.exp}
+    expect  {^$}
+}
+
+test {
+    name    = Test 6 Teil 1
+    comment = sortierte Datei
+    type    = param
+    cmd     {cat test6/test6.in | DUT beispieltest.out}
+    expect  {^NichtGanzSoSchlecht$}
+}
+
+test {
+     name    = Test 6 Teil 2
+    comment = sortierte Datei
+    type    = param
+    cmd     {diff beispieltest.out test6/test6.exp}
+    expect  {^$}
+}

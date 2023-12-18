@@ -1,0 +1,9 @@
+amsmath:
+caption2:
+fontenc:T1
+graphicx:
+hyperref:colorlinks,citecolor=black,filecolor=black,linkcolor=black,urlcolor=black
+inputenc:utf8
+ngerman:
+pgf:
+times:

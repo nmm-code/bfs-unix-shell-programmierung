@@ -1,0 +1,116 @@
+test {
+    name    = 1. Hilfeaufruf: Ausgabe
+    comment = Hilfetext anfordern und ueberpruefen
+    type    = param
+    cmd       {DUT -h | diff - help.exp}
+    expect    {^$}
+}
+
+test {
+    name    = 2. Hilfeaufruf: Return code
+    comment = Erwartet einen return code von 0 bei korrektem Hilfeaufruf
+    type    = param
+    cmd       {DUT -h 1>/dev/null && echo "ok"}
+    expect    {^ok$}
+}
+
+test {
+    name    = 3. Includegraphics-Ausgabe
+    comment = Erwartet eine korrekte Ausgabe der verwendeten Grafiken
+    type    = param
+    cmd       {DUT Latex_Mini_Dummy.tex -g}
+    expect    {^imgfoo\nimgfoo$}
+}
+
+test {
+    name    = 4. Structure-Ausgabe
+    comment = Erwartet eine korrekte Ausgabe der Struktur
+    type    = param
+    cmd       {DUT Latex_Mini_Dummy.tex -s | diff - bsp.exp}
+    expect    {^$}
+}
+
+test {
+    name    = 5. Usepackage-Ausgabe
+    comment = Erwartet eine korrekte Ausgabe der verwendeten Pakete
+    type    = param
+    cmd       {DUT Latex_Mini_Dummy.tex -u}
+    expect    {^fontenc:T1\ngraphicx:$}
+}
+
+
+test {
+    name    = 6. --structure bei 1.tex
+    comment = structur von 1.tex und chapter links
+    type    = param
+    cmd       {DUT 1.tex --structure | diff - exp/1-tex-struct.exp}
+    expect    {^$}
+}
+test {
+    name    = 7. --usedpackages bei 1.tex
+    comment = alphabethisch geordnet
+    type    = param
+    cmd       {DUT 1.tex --usedpackages | diff - exp/1-tex-used.exp}
+    expect    {^$}
+}
+test {
+    name    = 8. --graphics bei 1.tex
+    comment = alphabethisch geordnet
+    type    = param
+    cmd       {DUT 1.tex --graphics && echo ok}
+    expect    {^imgfoo\nok$}
+}
+
+test {
+    name    = 9.  -g bei oneline.tex
+    comment = nicht eingerückte Datei bearbeitet
+    type    = param
+    cmd       {DUT oneline.tex -g && echo ok}
+    expect    {^imgfoo\nok$}
+}
+
+test {
+    name    = 10. -u bei oneline.tex
+    comment = nicht eingerückte Datei bearbeitet
+    type    = param
+    cmd       {DUT oneline.tex -u | diff - exp/oneline-tex-used.exp}
+    expect    {^$}
+}
+test {
+    name    = 11. -s bei oneline.tex
+    comment = nicht eingerückte Datei bearbeitet
+    type    = param
+    cmd       {DUT oneline.tex -s | diff - exp/oneline-tex-struct.exp}
+    expect    {^$}
+}
+test {
+    name    = 12. png Datei
+    comment = ".png"
+    type    = param
+    cmd       {DUT ichbinda.png -g 2>/dev/null || echo ok}
+    expect    {^ok$}
+}
+
+test {
+    name    = 13. pdf Datei
+    comment = ".pdf"
+    type    = param
+    cmd       {DUT ichbinda.png -g 2>/dev/null || echo ok}
+    expect    {^ok$}
+}
+test {
+    name    = 14. txt Datei
+    comment = ".txt"
+    type    = param
+    cmd       {DUT dummy.txt -g 2>/dev/null || echo ok}
+    expect    {^ok$}
+}
+test {
+    name    = 15. Datei die nicht existiert
+    comment = ".txt"
+    type    = param
+    cmd       {DUT MICHGIBTESNICHT.txt -g 2>/dev/null || echo ok}
+    expect    {^ok$}
+}
+
+

@@ -1,0 +1,115 @@
+
+# Definition der Variablen "make", mit welcher make in den Testfällen aufgerufen werden kann: 
+define make   {make --no-print-directory --file=DUT}
+
+# Definition der Variablen "silent", mit welcher die Ausgaben eines Befehls auf STDOUT und STDERR
+# in den Testfällen entfernt werden können:
+define silent {1>/dev/null 2>/dev/null}
+
+test {
+    name    = 1) Ausgabe der Hilfe (mit "make help")
+    comment = Gibt die Hilfe aus und prüft diese (bei vorhandener Datei "help")
+    type    = param
+    cmd       {touch help; ${make} help | diff - help.exp; rm -f help}
+    expect    {^$}
+}
+
+define source {example.sh}
+define target {example.md}
+test {
+    name    = 2a) md aus sh generieren (mit "make ${target}")
+    comment = Konvertiert die Datei ${source} in die Datei ${target} und prüft den Inhalt
+    type    = param
+    cmd       {rm -f ${target}; \
+               ${make} ${target} ${silent}; \
+               diff ${target} ${target}.exp; \
+               rm -f ${target}; }
+    expect    {^$}
+}
+
+define target {example.md}
+test {
+    name    = 2b) md aus sh generieren (mit "make md")
+    comment = Konvertiert die sh-Datei in eine md-Datei und prüft den Inhalt
+    type    = param
+    cmd       {rm -f ${target}; \
+               ${make} md ${silent}; \
+               diff ${target} ${target}.exp; \
+               rm -f ${target}; }
+    expect    {^$}
+}
+
+test {
+    name    = 3) make
+    comment = übprüft ob index.html erstellt wird 
+    type    = param
+    cmd       {rm -f index.htm; \
+               ${make} ${silent}; \
+                test -r index.htm && echo "rdy"}
+    expect    {^rdy$}
+}
+
+test {
+    name    = 3a) make index
+    comment = übprüft ob index.html erstellt wird 
+    type    = param
+    cmd       {rm -f index.htm; \
+               ${make} index ${silent}; \
+                test -r index.htm && echo "rdy"}
+    expect    {^rdy$}
+}
+
+test {
+    name    = 3b) make all
+    comment = übprüft ob index.html erstellt wird 
+    type    = param
+    cmd       {rm -f index.htm; \
+               ${make} all ${silent}; \
+                test -r index.htm && echo "rdy"}
+    expect    {^rdy$}
+}
+test {
+    name    = 4) make md
+    comment = prüft ob md dateien entstehen
+    type    = param
+    cmd       {rm -f example.md; \
+               ${make} md ${silent}; \
+                test -r example.md && echo "rdy"}
+    expect    {^rdy$}
+}
+test {
+    name    = 5) make html
+    comment = prüft ob md dateien entstehen
+    type    = param
+    cmd       {rm -f example.html; \
+               ${make} html ${silent}; \
+                test -r example.md && test -r example.html && echo "rdy" && ${make} clean ${silent}}
+    expect    {^rdy$}
+}
+test {
+    name    = 6) make clean (make md vorher)
+    comment = nur generierte dateien werden gelöscht
+    type    = param
+    cmd       { ${make} md ${silent} \
+                $ {make} clean ${silent} \
+                test -r example.md || test -r example.sh && echo "rdy"}
+    expect    {^rdy$}
+}
+test {
+    name    = 6a) make clean (make html vorher)
+    comment = nur generierte dateien werden gelöscht
+    type    = param
+    cmd       {  ${make} html ${silent} \
+                $ {make} clean ${silent} \
+                 test -r example.md || test -r example.sh && echo "rdy"}
+    expect    {^rdy$}
+}
+test {
+    name    = 6b) make clean (make index vorher)
+    comment = nur generierte dateien werden gelöscht
+    type    = param
+    cmd       {  ${make} index ${silent} \
+                ${make} clean ${silent} \
+                 test -r example.md || test -r index.html ||test -r example.sh && echo "rdy"}
+    expect    {^rdy$}
+}

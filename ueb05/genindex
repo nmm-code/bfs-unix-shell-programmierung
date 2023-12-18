@@ -1,0 +1,13 @@
+#!/bin/sh
+# Erzeugt eine HTML-Seite mit einer Auflistung der HTML-Dateien im aktuellen Verzeichnis.
+# Schreibt auf STDOUT.
+# 
+# Author: aan, avh, mhe, mre, tti
+
+# HTML-Header und oeffnende HTML-Tags ausgeben:
+echo '<html><head><title></title></head><body>'
+# Alle HTML-Dateien im aktuellen Verzeichnis auflisten
+# und hieraus jeweils <h3>- und <a>-Tags generieren:
+ls *.html | sed 's|\(.*\)|<h3>\1</h3><a href=\"\1\">Documentation</a>|'
+# Schliessende HTML-Tags ausgeben:
+echo '</body></html>'

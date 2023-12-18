@@ -1,0 +1,20 @@
+#!/bin/sh
+# Liest aus der Standardeingabe, bewertet diese 
+# gibt den schlechtesten Eintrag aus 
+# schreibt sortiert in eine Datei (erster Parameter) je nach bewertung
+# author: Nima , Max
+
+# Liest aus stdin und filtert "<Failed>" aus.
+grep --invert-match --ignore-case '<Failed>' | 
+
+# Sortiert zuerst nach der 3. Spalte und danach nach der 1. Spalte 
+sort --field-separator ';' --unique --reverse --numeric-sort --key=3,3 --key=1,1 |
+
+# Schreibt den Inhalt von stdin in den ersten Parameter und gibt den Inhalt weiter
+tee "$1" |
+
+# tail gibt die letzte Zeile aus
+tail --lines=1 |
+
+# cut gibt den 2. Wert der mit ';' getrennt ist aus
+cut --fields=2 --delimiter=';' 

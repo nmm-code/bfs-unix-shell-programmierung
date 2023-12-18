@@ -1,0 +1,152 @@
+# Hilfeausgabe
+
+test {
+    name    = 1: Hilfeausgabe (Kurzform)
+    comment = Testet die Hilfeausgabe bei Angabe der Kurzform
+    type    = param
+    cmd     {DUT -h | diff - help.exp}
+    expect  {^$}
+}
+
+test {
+    name    = 2: Hilfeausgabe (Langform)
+    comment = Testet die Hilfeausgabe bei Angabe der Langform
+    type    = param
+    cmd     {DUT --help | diff - help.exp}
+    expect  {^$}
+}
+
+test {
+    name    = 3: Hilfeausgabe exit code (Langform)
+    comment = Testet den exit code bei der Hilfeausgabe bei Angabe der Langform
+    type    = param
+    cmd     {DUT --help >/dev/null && echo "ok"}
+    expect  {^ok$}
+}
+
+# Funktionstests
+
+test {
+    name    = 4: Primzahltest fuer 4 (Langform)
+    comment = einfacher Primzahltest
+    type    = param
+    cmd     {DUT --prime 4 && echo "ok"}
+    expect  {^The number 4 is not a prime number.\nok$}
+}
+
+test {
+    name    = 5: Binomialkoeffizient 7 ueber 3 (Langform)
+    comment = einfacher Binomialkoeffizienttest
+    type    = param
+    cmd     {DUT --bincoeff 7 3 && echo "ok"}
+    expect  {^binomial coefficient of 7 and 3: 35\nok$}
+}
+
+test {
+    name    = 6: Fakultaet von 5 (Langform)
+    comment = einfacher Fakultaettest
+    type    = param
+    cmd     {DUT --factorial 5 && echo "ok"}
+    expect  {^factorial of 5: 120\nok$}
+}
+
+test {
+    name    = 7: Fakultaet und Primzahl
+    comment = Fakultaet 10, Primzahl 31
+    type    = param
+    cmd     {DUT -f 10 -p 31 && echo "ok"}
+    expect  {^factorial of 10: 3628800\nThe number 31 is a prime number.\nok$}
+}
+test {
+    name    = 8: Ohne Parameter
+    comment = Ohne Parameter
+    type    = param
+    cmd     {DUT 2>test.out || diff test.out exp/falscheSyntax}
+    expect  {^$}
+}
+test {
+    name    = 9: Negative Zahl bei -c
+    comment = Negative Zahl bei binominal
+    type    = param
+    cmd     {DUT -c -2 4 2>test.out || diff test.out exp/negativeParameter}
+    expect  {^$}
+}
+test {
+    name    = 10: Negative Zahl bei -f
+    comment = Negative Zahl bei Fakultät
+    type    = param
+    cmd     {DUT -f -2 2>test.out || diff test.out exp/negativeParameter}
+    expect  {^$}
+}
+test {
+    name    = 11: Negative Zahl bei -p
+    comment = Negative Zahl bei primenzahl
+    type    = param
+    cmd     {DUT -p -2 && echo "ok" }
+    expect  {^The number -2 is not a prime number.\nok$}
+}
+test {
+    name    = 12: Falsche Syntax bei -c (no parm)
+    comment = Falsche Syntax bei binominal kein param)
+    type    = param
+    cmd     {DUT -c 2>test.out || diff test.out exp/falscheSyntax}
+    expect  {^$}
+}
+test {
+    name    = 13: Falsche Syntax bei -c (ein parm)
+    comment = Falsche Syntax bei binominal (nur ein param)
+    type    = param
+    cmd     {DUT -c 4 2>test.out || diff test.out exp/falscheSyntax}
+    expect  {^$}
+}
+test {
+    name    = 14: Falsche Syntax bei -f (no parm)
+    comment = Falsche Syntax bei Fakultät
+    type    = param
+    cmd     {DUT -f  2>test.out || diff test.out exp/falscheSyntax}
+    expect  {^$}
+}
+test {
+    name    = 15: Falsche Syntax bei -p (no parm)
+    comment = Falsche Syntax bei primenzahl
+    type    = param
+    cmd     {DUT -p  2>test.out || diff test.out exp/falscheSyntax}
+    expect  {^$}
+}
+test {
+    name    = 16: Primenzahl test mit 961
+    comment = Test mit 961 -p
+    type    = param
+    cmd     {DUT -p 961  && echo "ok"}
+    expect  {^The number 961 is not a prime number.\nok$}
+}
+test {
+    name    = 17: Binominal 2 gleiche param
+    comment = 4 ueber 4
+    type    = param
+    cmd     {DUT -c 4 4 && echo "ok"}
+    expect  {^binomial coefficient of 4 and 4: 1\nok$}
+}
+test {
+    name    = 18: Binominal erster param kleiner
+    comment = 3 ueber 4 undefiniert
+    type    = param
+    cmd     {DUT -c 3 4 2>test.out || diff test.out exp/negativeParameter}
+    expect  {^$}
+}
+test {
+    name    = 19: Unbekannter parameter (ein param)
+    comment = unbekannte Operation
+    type    = param
+    cmd     {DUT -g  "Moin" 2>test.out || diff test.out exp/unbekannterParam}
+    expect  {^$}
+}
+test {
+    name    = 20: Unbekannter parameter (zwei param)
+    comment = unbekannte Operation
+    type    = param
+    cmd     {DUT "Moin" 2>test.out || diff test.out exp/unbekannterParam}
+    expect  {^$}
+}
+
+

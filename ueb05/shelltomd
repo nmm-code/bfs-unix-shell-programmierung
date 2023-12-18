@@ -1,0 +1,13 @@
+#!/bin/sh
+# Generiert Markdown-Code aus Shell-Code. Liest von STDIN und schreibt auf STDOUT.
+# 
+# Author: aan, avh, mhe, mre, tti
+
+# Interpreterangabe entfernen:
+tail --lines=+2      |
+# Code-Zeilen einruecken:
+sed 's|^[^#]|\t&|g'  |
+# aus Kommentar-Zeilen Absaetze machen:
+sed 's|^#.*$|&\n|g'  |
+# aus Kommentar-Zeilen die Raute entfernen:
+sed 's|^#\s*||g'
